@@ -1,5 +1,5 @@
 ---
-title: "Assignment 4 - Aquaculture"
+title: "Assignment: Final"
 author: "Gabrielle"
 date: '2022-11-09'
 output: 
@@ -16,6 +16,7 @@ library(janitor)
 library(broom) # used to make tables
 library(knitr) # used to make table
 ```
+
 
 Research Question: Does Environmental DNA metabarcoding estimate the species area relationship (SAR) the same or different than traditional fishing gear?
 
@@ -100,5 +101,157 @@ sar_scatter_trad_mod <- ggplot(sar, aes(x = area_ha_mod, y = trad_richness_mod))
 
 sar_scatter_trad_mod
 ```
+```{r}
+# histogram for raw dna_richness data
+hist0 <- hist(sar$dna_richness)
+# histogram for logged dna_richness data
+hist1 <- hist(sar$dna_richness_mod)
+# histogram for raw trad_richness data
+hist0_b <- hist(sar$trad_richness)
+# histogram for logged trad_richness data
+hist1_b <- hist(sar$trad_richness_mod)
+# histogram for raw area data
+hist0_c <- hist(sar$area_ha)
+# histogram for logged area data
+hist1_c <- hist(sar$area_ha_mod)
+
+```
+
+Change the data format, use "pivot" 
+
+```{r}
+sar <- read_csv(here("data","SAR_data.csv"))
+
+# use janitor() and clean up the names
+sar <- sar %>% clean_names()
+
+sar_long <- sar %>% pivot_longer(cols = c('dna_richness','trad_richness'),
+                                 names_to = 'method',
+                                 values_to = 'species_richness')
+
+```
+
+Log transform the data:
+
+```{r}
+sar_long$area_ha_log = log(sar_long$area_ha)
+
+sar_long$species_richness_log = log(sar_long$species_richness)
+```
+
+Visualize, again: long data and logged data
+
+```{r sar_5, fig.align='center',fig.cap="Figure 5. Scatterplot of the relationship between the logged area of the lake surveyed (in hectares) and the logged number of unique fish species detected. Color indicates method used: Peach for eDNA barcoding, Teal for traditional/conventional fishing approaches."}
+
+sar_scatter_long_log <- ggplot(sar_long, aes(x = area_ha_log, y = species_richness_log, color = method)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Logged Area of Lake Surveyed (hectares)", y = "Logged # of Unique Fish Detected") +
+  theme_minimal()
+
+sar_scatter_long_log
+```
+Make a dummy variable for methods:
+
+```{r}
+# create dummy variables
+dna <- ifelse(sar_long$method == 'dna_richness', 1, 0)
+trad <- ifelse(sar_long$method == 'trad_richness', 1, 0)
 
 
+# create data frame to use for regression
+sar_long_reg <- data.frame(species = sar_long$species_richness_log,
+                     area = sar_long$area_ha_log,
+                     dna = dna,
+                     trad = trad)
+
+# view data frame
+sar_long_reg
+
+```
+
+Models
+
+```{r}
+# to fix the error: Error in lm.fit(x, y, offset = offset, singular.ok = singular.ok, ...) : NA/NaN/Inf in 'y'
+# We receive an error because there are NaN and Inf values present in the data frame.
+# R simply ignores the NA values when fitting the linear regression model
+
+# do:
+sar_long_reg[is.na(sar_long_reg) | sar_long_reg=="-Inf"] = NA
+sar_long_reg
+
+# create regression model
+model <- lm(species ~ area + dna + trad, data=sar_long_reg)
+
+# view regression model
+summary(model)
+```
+
+
+Investigate whether there is a different effect for the different methods through creating a suite of models
+
+```{r, results = TRUE}
+# create regression model
+m_0 <- lm(species ~ area, data = sar_long_reg) # Simple linear regression, species richness as a function of area
+
+m_1 <- lm(species ~ dna, data = sar_long_reg) # Simple linear regression, species richness as a function of eDNA methods
+
+m_2 <- lm(species ~ trad, data = sar_long_reg) # Simple linear regression, species richness as a function of trad methods 
+
+m_3 <- lm(species ~ area + dna, data = sar_long_reg) # Simple linear regression, species richness as a function of area and eDNA methods 
+
+m_4 <- lm(species ~ area + trad, data = sar_long_reg) # Simple linear regression, species richness as a function of area and traditional methods 
+
+m_5 <- lm(species ~ area * dna, data = sar_long_reg) # Simple linear regression, species richness as a function of area interacting with eDNA methods
+
+m_6 <- lm(species ~ area * trad, data = sar_long_reg)  # Simple linear regression, species richness as a function of area interacting with tradtional methods
+
+m_7 <- lm(species ~ -1 + area + I(dna^2), data = sar_long_reg) # 2nd degree polynomial no constant (intercept)
+## I = "as is" command
+## run a command without actually changing or adding a variable to the data set
+
+m_8 <- lm(species ~ -1 + area + I(trad^2), data = sar_long_reg)
+
+m_9 <- lm(species ~ area + I(dna^2), data = sar_long_reg)
+
+m_10 <- lm(species ~ area + I(trad^2), data = sar_long_reg)
+
+
+BIC_list <- c(BIC(m_0), BIC(m_1), BIC(m_2), BIC(m_3), BIC(m_4), BIC(m_5), BIC(m_6), BIC(m_7), BIC(m_8), BIC(m_9), BIC(m_10))
+
+
+model_output <-rbind(data.frame(glance(m_0)),data.frame(glance(m_1)),data.frame(glance(m_2)),
+                     data.frame(glance(m_3)),data.frame(glance(m_4)),data.frame(glance(m_5)),
+                     data.frame(glance(m_6)),data.frame(glance(m_7)),data.frame(glance(m_8)),
+                     data.frame(glance(m_9)),data.frame(glance(m_10))) %>% select(BIC)
+
+model_output <- mutate(model_output, delta.BIC = BIC-min(BIC_list))
+model_output$model<-c("Model 0","Model 1","Model 2","Model 3","Model 4","Model 5","Model 6","Model 7", "Model 8", "Model 9", "Model 10")
+model_output<-model_output[,c("model", "BIC", "delta.BIC" )]
+
+
+kable(model_output, format = "markdown", digits = 3, caption = "BIC, and Delta.BIC for the IDF models. Delta BIC > 7 indicates models that should be dismissed from further consideration.")
+
+
+
+```
+
+
+
+
+###### check assumptions:
+(1) linearity 
+(2) independence - data points are not connected to each other; not a time series
+(3) homoscedasticity - constant variance of the errors; residuals constant throughout the course (ie: the x range) of the model 
+    Levene's test
+* generally, if the largest sample variance is <4x the smallest sample variance, the variances are close enough
+(4) normality - can use a transformation; use a qq plot or shapiro wilks to check
+
+
+
+
+## INTRODUCTION
+## METHODS
+## RESULTS
+## DISCUSSION
