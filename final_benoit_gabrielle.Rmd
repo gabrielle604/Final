@@ -1,0 +1,104 @@
+---
+title: "Assignment 4 - Aquaculture"
+author: "Gabrielle"
+date: '2022-11-09'
+output: 
+  html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message=FALSE,warning = FALSE,results=FALSE)
+library(tidyverse)
+library(here)
+library(ggpubr) # for some graphic applications that extend ggplot2
+library(janitor)
+library(broom) # used to make tables
+library(knitr) # used to make table
+```
+
+Research Question: Does Environmental DNA metabarcoding estimate the species area relationship (SAR) the same or different than traditional fishing gear?
+
+Suggestions and hints:
+1. You may need to transform your data or use a log function in the model formulation (see SAR formulation in the lecture notes)
+2. Make sure you address the assumptions of all analyses and make caveats about any violations of the assumptions
+3. Be concise, yet thorough. Points will be deducted for excessive figures or analyses irrelevant to your argument.
+4. You will need to bring the data into tidy form for analyses and plots.
+
+##### Load in the data + clean it:
+
+- area_ha: The area of the lake surveyed in hectares
+- dna_richness: The number of unique fish species detected using eDNA metabarcoding
+- trad_richness: The number of unique fish species detected using traditional/conventional fishing approaches.
+
+```{r}
+sar <- read_csv(here("data","SAR_data.csv"))
+
+# use janitor() and clean up the names
+sar <- sar %>% clean_names()
+```
+
+##### Scatterplot of the data to visually inpect it: dna_richness
+
+```{r sar_1, fig.align='center',fig.cap="Figure 1. Scatterplot of the relationship between the area of the lake surveyed (in hectares) and the number of unique fish species detected using eDNA metabarcoding."}
+
+sar_scatter_dna <- ggplot(sar, aes(x = area_ha, y = dna_richness)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Area of lake surveyed (hectares)", y = "# of unique fish detected via eDNA") +
+  theme_minimal()
+
+sar_scatter_dna
+```
+
+##### Scatterplot of the data to visually inpect it: trad_richness
+
+```{r sar_2, fig.align='center',fig.cap="Figure 2. Scatterplot of the relationship between the area of the lake surveyed (in hectares) and the number of unique fish species detected using traditional/conventional fishing approaches."}
+
+sar_scatter_trad <- ggplot(sar, aes(x = area_ha, y = trad_richness)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Area of Lake Surveyed (hectares)", y = "# of Unique Fish Detected via Traditional Approaches") +
+  theme_minimal()
+
+sar_scatter_trad
+```
+
+
+##### Log transform the data:
+
+```{r}
+sar$area_ha_mod = log(sar$area_ha)
+
+sar$dna_richness_mod = log(sar$dna_richness)
+
+sar$trad_richness_mod = log(sar$trad_richness)
+
+```
+
+
+Re-visualize using the log-transformed data:
+
+```{r sar_3, fig.align='center',fig.cap="Figure 3. Scatterplot of the relationship between the logged area of the lake surveyed (in hectares) and the logged number of unique fish species detected using eDNA metabarcoding."}
+
+sar_scatter_dna_mod <- ggplot(sar, aes(x = area_ha_mod, y = dna_richness_mod)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Logged Area of Lake Surveyed (hectares)", y = "Logged # of Unique Fish Detected via eDNA") +
+  theme_minimal()
+
+sar_scatter_dna_mod
+```
+
+```{r sar_4, fig.align='center',fig.cap="Figure 4. Scatterplot of the relationship between the logged area of the lake surveyed (in hectares) and the logged number of unique fish species detected using traditional/conventional fishing approaches."}
+
+sar_scatter_trad_mod <- ggplot(sar, aes(x = area_ha_mod, y = trad_richness_mod)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Logged Area of Lake Surveyed (hectares)", y = "Logged # of Unique Fish Detected via Traditional Approaches") +
+  theme_minimal()
+
+sar_scatter_trad_mod
+```
+
+
