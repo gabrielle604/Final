@@ -15,31 +15,48 @@ library(ggpubr) # for some graphic applications that extend ggplot2
 library(janitor)
 library(broom) # used to make tables
 library(knitr) # used to make table
+library(car) # has leveneTest 
 ```
 
+## INTRODUCTION
+eDNA metabarcoding has the potential to serves as a more widely accessible and effective method through which to survey fish species richness. Traditional methods include nets, visual census, and electrofishing. eDNA has the potential to create  better analyses of hard to reach locations, such as polar, open-ocean, and deep sea study sites. Additionally, it creates a far less damaging and less stressful procedure for the fish and surrouding habitat. eDNA targets the widespread particle (DNA) trace of a species, and can assist in the detection of rare species that may elude the common snorkeler or scuba diver attempting to have a fish "in hand" as a testament to its presence in that environment. 
 
-Research Question: Does Environmental DNA metabarcoding estimate the species area relationship (SAR) the same or different than traditional fishing gear?
+This report will investigate the research Question: 
+Does Environmental DNA Metabarcoding estimate the species area relationship (SAR) the same or different than traditional fishing gear?
 
-Suggestions and hints:
-1. You may need to transform your data or use a log function in the model formulation (see SAR formulation in the lecture notes)
-2. Make sure you address the assumptions of all analyses and make caveats about any violations of the assumptions
-3. Be concise, yet thorough. Points will be deducted for excessive figures or analyses irrelevant to your argument.
-4. You will need to bring the data into tidy form for analyses and plots.
+## METHODS
 
-##### Load in the data + clean it:
+#### Load in the data + clean it:
 
 - area_ha: The area of the lake surveyed in hectares
 - dna_richness: The number of unique fish species detected using eDNA metabarcoding
 - trad_richness: The number of unique fish species detected using traditional/conventional fishing approaches.
 
+We will drop the few NA values to allow for the statistical analysis to be completed. Future analysis could use a very small number rather than dropping the zeros, which when logged becomes undefined or "-Inf" as it appears in R. 
+
 ```{r}
 sar <- read_csv(here("data","SAR_data.csv"))
 
-# use janitor() and clean up the names
+# use janitor() and clean up the names:
 sar <- sar %>% clean_names()
+
+# log transform the data:
+sar$area_ha_mod = log(sar$area_ha)
+
+sar$dna_richness_mod = log(sar$dna_richness)
+
+sar$trad_richness_mod = log(sar$trad_richness)
+
+# get rid of -Inf values:
+sar[is.na(sar) | sar=="-Inf"] = NA
+
+# drop the NA observations:
+sar <- drop_na(sar) 
+
+
 ```
 
-##### Scatterplot of the data to visually inpect it: dna_richness
+#### Scatterplot of the raw data to visually inpect it: dna_richness
 
 ```{r sar_1, fig.align='center',fig.cap="Figure 1. Scatterplot of the relationship between the area of the lake surveyed (in hectares) and the number of unique fish species detected using eDNA metabarcoding."}
 
@@ -52,7 +69,7 @@ sar_scatter_dna <- ggplot(sar, aes(x = area_ha, y = dna_richness)) +
 sar_scatter_dna
 ```
 
-##### Scatterplot of the data to visually inpect it: trad_richness
+#### Scatterplot of the raw data to visually inpect it: trad_richness
 
 ```{r sar_2, fig.align='center',fig.cap="Figure 2. Scatterplot of the relationship between the area of the lake surveyed (in hectares) and the number of unique fish species detected using traditional/conventional fishing approaches."}
 
@@ -65,26 +82,14 @@ sar_scatter_trad <- ggplot(sar, aes(x = area_ha, y = trad_richness)) +
 sar_scatter_trad
 ```
 
-
-##### Log transform the data:
-
-```{r}
-sar$area_ha_mod = log(sar$area_ha)
-
-sar$dna_richness_mod = log(sar$dna_richness)
-
-sar$trad_richness_mod = log(sar$trad_richness)
-
-```
-
-
-Re-visualize using the log-transformed data:
+#### Re-visualize using the log-transformed data:
 
 ```{r sar_3, fig.align='center',fig.cap="Figure 3. Scatterplot of the relationship between the logged area of the lake surveyed (in hectares) and the logged number of unique fish species detected using eDNA metabarcoding."}
 
 sar_scatter_dna_mod <- ggplot(sar, aes(x = area_ha_mod, y = dna_richness_mod)) +
   geom_point() +
   geom_smooth(method = "lm") +
+  ylim (-2,6) +
   labs(x = "Logged Area of Lake Surveyed (hectares)", y = "Logged # of Unique Fish Detected via eDNA") +
   theme_minimal()
 
@@ -96,47 +101,39 @@ sar_scatter_dna_mod
 sar_scatter_trad_mod <- ggplot(sar, aes(x = area_ha_mod, y = trad_richness_mod)) +
   geom_point() +
   geom_smooth(method = "lm") +
+  ylim (-2, 6) +
   labs(x = "Logged Area of Lake Surveyed (hectares)", y = "Logged # of Unique Fish Detected via Traditional Approaches") +
   theme_minimal()
 
 sar_scatter_trad_mod
 ```
-```{r}
-# histogram for raw dna_richness data
-hist0 <- hist(sar$dna_richness)
-# histogram for logged dna_richness data
-hist1 <- hist(sar$dna_richness_mod)
-# histogram for raw trad_richness data
-hist0_b <- hist(sar$trad_richness)
-# histogram for logged trad_richness data
-hist1_b <- hist(sar$trad_richness_mod)
-# histogram for raw area data
-hist0_c <- hist(sar$area_ha)
-# histogram for logged area data
-hist1_c <- hist(sar$area_ha_mod)
 
-```
 
-Change the data format, use "pivot" 
 
-```{r}
-sar <- read_csv(here("data","SAR_data.csv"))
+
+#### Change the data format, use "pivot" 
+
+```{r, results = FALSE}
+sar_b <- read_csv(here("data","SAR_data.csv"))
 
 # use janitor() and clean up the names
-sar <- sar %>% clean_names()
+sar_b <- sar_b %>% clean_names()
 
-sar_long <- sar %>% pivot_longer(cols = c('dna_richness','trad_richness'),
+sar_long <- sar_b %>% pivot_longer(cols = c('dna_richness','trad_richness'),
                                  names_to = 'method',
                                  values_to = 'species_richness')
 
-```
-
-Log transform the data:
-
-```{r}
+# log transform the data
 sar_long$area_ha_log = log(sar_long$area_ha)
 
 sar_long$species_richness_log = log(sar_long$species_richness)
+
+# make -Inf code as NA
+sar_long[is.na(sar_long) | sar_long=="-Inf"] = NA
+
+# get rid of the NAs:
+sar_long <- drop_na(sar_long) 
+
 ```
 
 Visualize, again: long data and logged data
@@ -146,112 +143,132 @@ Visualize, again: long data and logged data
 sar_scatter_long_log <- ggplot(sar_long, aes(x = area_ha_log, y = species_richness_log, color = method)) +
   geom_point() +
   geom_smooth(method = "lm") +
+  ylim(-1, 6) +
   labs(x = "Logged Area of Lake Surveyed (hectares)", y = "Logged # of Unique Fish Detected") +
   theme_minimal()
 
 sar_scatter_long_log
 ```
-Make a dummy variable for methods:
 
-```{r}
-# create dummy variables
-dna <- ifelse(sar_long$method == 'dna_richness', 1, 0)
-trad <- ifelse(sar_long$method == 'trad_richness', 1, 0)
+#### Suite of Models:
+This allows us to investigate whether there is a different effect for the two data collection methods (eDNA barcoding and traditional methods).
 
+Model 0: A simple linear regression. The logged species richness as a function of logged area.
 
-# create data frame to use for regression
-sar_long_reg <- data.frame(species = sar_long$species_richness_log,
-                     area = sar_long$area_ha_log,
-                     dna = dna,
-                     trad = trad)
+Model 1: A simple linear regression. The logged species richness as a function of the method of data collection.
 
-# view data frame
-sar_long_reg
+Model 2: A simple linear regression. The logged species richness as a function of logged area and the method of data collection
+
+Model 3: A simple linear regression. The logged species richness as a function of area interacting with the method of data collection.
+
+```{r, results = FALSE}
+m_0 <- lm(species_richness_log ~ area_ha_log, data = sar_long)
+summary(m_0)
+
+m_1 <- lm(species_richness_log ~ method, data = sar_long) 
+summary(m_1)
+
+m_2 <- lm(species_richness_log ~ area_ha_log + method, data = sar_long) 
+summary(m_2)
+
+m_3 <- lm(species_richness_log ~ area_ha_log * method, data = sar_long) 
+summary(m_3)
 
 ```
-
-Models
-
-```{r}
-# to fix the error: Error in lm.fit(x, y, offset = offset, singular.ok = singular.ok, ...) : NA/NaN/Inf in 'y'
-# We receive an error because there are NaN and Inf values present in the data frame.
-# R simply ignores the NA values when fitting the linear regression model
-
-# do:
-sar_long_reg[is.na(sar_long_reg) | sar_long_reg=="-Inf"] = NA
-sar_long_reg
-
-# create regression model
-model <- lm(species ~ area + dna + trad, data=sar_long_reg)
-
-# view regression model
-summary(model)
-```
-
-
-Investigate whether there is a different effect for the different methods through creating a suite of models
-
 ```{r, results = TRUE}
-# create regression model
-m_0 <- lm(species ~ area, data = sar_long_reg) # Simple linear regression, species richness as a function of area
-
-m_1 <- lm(species ~ dna, data = sar_long_reg) # Simple linear regression, species richness as a function of eDNA methods
-
-m_2 <- lm(species ~ trad, data = sar_long_reg) # Simple linear regression, species richness as a function of trad methods 
-
-m_3 <- lm(species ~ area + dna, data = sar_long_reg) # Simple linear regression, species richness as a function of area and eDNA methods 
-
-m_4 <- lm(species ~ area + trad, data = sar_long_reg) # Simple linear regression, species richness as a function of area and traditional methods 
-
-m_5 <- lm(species ~ area * dna, data = sar_long_reg) # Simple linear regression, species richness as a function of area interacting with eDNA methods
-
-m_6 <- lm(species ~ area * trad, data = sar_long_reg)  # Simple linear regression, species richness as a function of area interacting with tradtional methods
-
-m_7 <- lm(species ~ -1 + area + I(dna^2), data = sar_long_reg) # 2nd degree polynomial no constant (intercept)
-## I = "as is" command
-## run a command without actually changing or adding a variable to the data set
-
-m_8 <- lm(species ~ -1 + area + I(trad^2), data = sar_long_reg)
-
-m_9 <- lm(species ~ area + I(dna^2), data = sar_long_reg)
-
-m_10 <- lm(species ~ area + I(trad^2), data = sar_long_reg)
-
-
-BIC_list <- c(BIC(m_0), BIC(m_1), BIC(m_2), BIC(m_3), BIC(m_4), BIC(m_5), BIC(m_6), BIC(m_7), BIC(m_8), BIC(m_9), BIC(m_10))
+BIC_list <- c(BIC(m_0), BIC(m_1), BIC(m_2), BIC(m_3))
 
 
 model_output <-rbind(data.frame(glance(m_0)),data.frame(glance(m_1)),data.frame(glance(m_2)),
-                     data.frame(glance(m_3)),data.frame(glance(m_4)),data.frame(glance(m_5)),
-                     data.frame(glance(m_6)),data.frame(glance(m_7)),data.frame(glance(m_8)),
-                     data.frame(glance(m_9)),data.frame(glance(m_10))) %>% select(BIC)
+                     data.frame(glance(m_3))) %>% select(BIC)
 
 model_output <- mutate(model_output, delta.BIC = BIC-min(BIC_list))
-model_output$model<-c("Model 0","Model 1","Model 2","Model 3","Model 4","Model 5","Model 6","Model 7", "Model 8", "Model 9", "Model 10")
+model_output$model<-c("Model 0","Model 1","Model 2","Model 3")
 model_output<-model_output[,c("model", "BIC", "delta.BIC" )]
 
 
 kable(model_output, format = "markdown", digits = 3, caption = "BIC, and Delta.BIC for the IDF models. Delta BIC > 7 indicates models that should be dismissed from further consideration.")
-
-
-
 ```
 
 
-
-
-###### check assumptions:
-(1) linearity 
-(2) independence - data points are not connected to each other; not a time series
-(3) homoscedasticity - constant variance of the errors; residuals constant throughout the course (ie: the x range) of the model 
-    Levene's test
-* generally, if the largest sample variance is <4x the smallest sample variance, the variances are close enough
-(4) normality - can use a transformation; use a qq plot or shapiro wilks to check
-
-
-
-
-## INTRODUCTION
-## METHODS
 ## RESULTS
+
+The model that performs best is Model 0, a simple linear regression showing logged species richness as a function of logged area. 
+
+The delta BIC for Model 1 is 61.897, which is far beyond the BIC < 7 thresh hold, so it is a very unlikely model, and therefore we will dismiss Model 1. This reinforces our understanding that size of study area matters substantially in this research question.
+
+Model 2 and Model 3 are quite similar. Model 2, which is the model performing the second best has a delta BIC = 4.874 (and still under the BIC <7 thresh hold). It is a simple linear regression, logged species richness as a function of logged area and the method of data collection. It would be a model we would want to look into more closely if we were to collect more data. Model 3 is a simple linear regression of the logged species richness as a function of area interacting with the method of data collection. In this model, the slopes and intercepts of the regression for each method vary independently of each other. However, Model 3 has a delta BIC of 9.175, which is beyond the BIC <7 thresh hold; it is not a likely scenario, and therefore we will dismiss this model. 
+
+From model 2, we can determine that the intercept is 1.68, and for every logged hectare of area increase, there is an increase of the logged species richness of 0.17. The intercept is shifted up for traditional methods by 0.01 logged species richness. It is important to note that the intercept for the traditional method is not significant and the adjusted R-squared value is 0.3647. This tells us that about 36% of the data points fit to the regression line in Model 2. 
+
+
+To estimate the equation for the Species Area Relationship using Model 0: 
+
+$S = c*A^z$
+
+$S = 5.36 * A ^{0.17}$
+
+```{r m_0_fig, fig.align='center',fig.cap="Figure 6. Model 0: Species richness (logged) regressed on logged area in hectares."}
+m_0 <- lm(species_richness_log ~ area_ha_log, data = sar_long) 
+
+fig_m_0 <- ggplot(sar_long, aes(x = area_ha_log, y = species_richness_log)) + 
+  geom_point() +
+  geom_smooth() +
+  labs(x = "Logged Area (hectares)", y = "(Logged) Species Richness") +
+  theme_minimal() +
+  stat_smooth(method = "lm", formula = lm(species_richness_log ~ area_ha_log, data = sar_long), se = FALSE)
+
+fig_m_0
+```
+
+```{r m_2_fig, fig.align='center',fig.cap="Figure 7. Model 2: Species richness (logged) regressed on logged area in hectares by method. Peach is the eDNA metabarcoding method. Teal is the traditional methods."}
+m_2 <- lm(species_richness_log ~ area_ha_log + method, data = sar_long) # Simple linear regression, logged species richness as a function of logged area and the method
+
+
+fig_m_2 <- ggplot(sar_long, aes(x = area_ha_log, y = species_richness_log, color = method)) + 
+  geom_point() +
+  geom_smooth() +
+  labs(x = "Logged Area (hectares)", y = "(Logged) Species Richness") +
+  theme_minimal() +
+  stat_smooth(method = "lm", formula = lm(species_richness_log ~ area_ha_log + method, data = sar_long), se = FALSE)
+
+fig_m_2
+```
+
+
+To specifically answer our research question: "Does Environmental DNA metabarcoding estimate the species area relationship (SAR) the same or different than traditional fishing gear?" We can confidently state that no, the statistics show that whether eDNA metabarcoding or traditional methods are used, there is no significant impact on improving the specificity of our ability to determine the species richness in that area. 
+
+
+#### Checking assumptions for Model 0:
+
+#### Linearity
+There is a linear relationship between the log area (in hectares) of study location and the species richness value. 
+
+#### Normality
+
+We can check the normality of the residuals around the regression line with shapiro-wilks test. The p value is less than 0.05, which means the residuals are not normally distributed. This informs us that there is most likely another covariate that influences species richness in addition to area in hectares (such as latitude, water quality, or proximity to human settlement). In future analyses, we could explore incorporating this other covariate.
+
+The histogram of the model residuals does not identify substantial outliers. It is showing the difference between the model residuals and the regression line; the number of standard deviations away from the mean. All are less than 2 standard deviations from the mean. Therefore, based on visual inspections, the data is enough normal to proceed with our analysis. 
+
+```{r, results = FALSE}
+shapiro.test(m_0$residuals)
+
+hist(m_0$residuals)
+```
+
+#### Homoscedasticity:
+Homoscedasticity refers to constant variance of the errors; residuals that are constant throughout the x range of the model. Generally, if the largest sample variance is <4x the smallest sample variance, the variances are close enough. In this data, they are all within 4 standard deviations, except for two, which we can  understand as the influence of the few samples that are from large lakes. Most of this data is for smaller lakes with smaller numbers of species. While taking the log area should reduce the leverage of the large lakes, the lack of eDNA data in large, high diversity lakes is slim. This analysis would be better suited for low species in smaller areas, rather than extrapolating to large lakes with high variability of species when we only have a few observations at this scale. 
+
+#### Independence:
+From the information available, it can be concluded that the observations were independently collected, do not connect to each other, and are not part of a time series. A possible factor at play could be climate change, which affected everywhere in the world, but differently. However, we will disregard that for now. 
+
 ## DISCUSSION
+In the paper by McElroy et al., (2020), they state that "the peak difference in performance for eDNA metabarcoding compared to conventional surveys occurred at a species richness of 30." This was for freshwater sites, however for marine sites, there were not enough data to perform the relative performance parity. This is noteworthy, because of the 132 observations we have in the dataset for this work, only a handful (5 observations) contain >30 species. Yet still, we conducted a statistical comparison between the each method, eDNA metabarcoding and traditional methods, and determined that there is no statistical difference between their performances of reporting species richness. In time, with deeper understanding of eDNA metabarcoding, such as more accurate calibration systems, and greater quantification of degradation of DNA and transport of DNA in various environments, eDNA will surpass traditional methods and become the standard method of determining species richness in both freshwater and marine environments for the benefit of ecological study and natural resource management. 
+
+## REFERENCES
+
+Barbour, C. D., & Brown, J. H. (1974). Fish Species Diversity in Lakes. The American Naturalist, 108(962), 473–489. https://doi.org/10.1086/282927
+
+Jerde, C. L. (2021). Can we manage fisheries with the inherent uncertainty from eDNA? Journal of Fish Biology, 98(2), 341–353. https://doi.org/10.1111/jfb.14218
+
+McElroy, M. E., Dressler, T. L., Titcomb, G. C., Wilson, E. A., Deiner, K., Dudley, T. L., Eliason, E. J., Evans, N. T., Gaines, S. D., Lafferty, K. D., Lamberti, G. A., Li, Y., Lodge, D. M., Love, M. S., Mahon, A. R., Pfrender, M. E., Renshaw, M. A., Selkoe, K. A., & Jerde, C. L. (2020). Calibrating Environmental DNA Metabarcoding to Conventional Surveys for Measuring Fish Species Richness. Frontiers in Ecology and Evolution, 8, 276. https://doi.org/10.3389 /fevo.2020.00276
