@@ -19,7 +19,7 @@ library(car) # has leveneTest
 ```
 
 ## INTRODUCTION
-eDNA metabarcoding has the potential to serves as a more widely accessible and effective method through which to survey fish species richness. Traditional methods include nets, visual census, and electrofishing. eDNA has the potential to create  better analyses of hard to reach locations, such as polar, open-ocean, and deep sea study sites. Additionally, it creates a far less damaging and less stressful procedure for the fish and surrouding habitat. eDNA targets the widespread particle (DNA) trace of a species, and can assist in the detection of rare species that may elude the common snorkeler or scuba diver attempting to have a fish "in hand" as a testament to its presence in that environment. 
+eDNA metabarcoding has the potential to serves as a more widely accessible and effective method through which to survey fish species richness. Traditional methods include nets, visual census, and electrofishing. eDNA has the potential to create  better analyses of hard to reach locations, such as polar, open-ocean, and deep sea study sites. Additionally, it creates a far less damaging and less stressful procedure for the fish and surrounding habitat. eDNA targets the widespread particle (DNA) trace of a species, and can assist in the detection of rare species that may elude the common snorkeler or scuba diver attempting to have a fish "in hand" as a testament to its presence in that environment. 
 
 This report will investigate the research Question: 
 Does Environmental DNA Metabarcoding estimate the species area relationship (SAR) the same or different than traditional fishing gear?
